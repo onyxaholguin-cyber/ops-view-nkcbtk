@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>Status</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--fg:#e6e8ee;--mute:#8b93a7;--acc:#5b9dff;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f5b942}
+@media (prefers-color-scheme: light){:root{--bg:#f5f6f8;--card:#fff;--line:#e3e6ec;--fg:#1b1e25;--mute:#646c80;--acc:#2f6fe0;--ok:#16a06a;--bad:#d64545;--warn:#b7791f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+[hidden]{display:none!important}
+header{padding:18px 16px 8px;max-width:1100px;margin:0 auto;display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+h1{margin:0;font-size:1.35rem}
+.sub{color:var(--mute);font-size:.85rem;margin-top:4px}
+main{max-width:1100px;margin:0 auto;padding:8px 16px 40px;display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:860px){main{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+h2{margin:0 0 10px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.now{font-size:1.1rem;font-weight:600}
+.now .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:8px;animation:p 2s infinite}
+@keyframes p{50%{opacity:.35}}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{padding:9px 0;border-top:1px solid var(--line)}
+ul.list li:first-child{border-top:0}
+.meta{color:var(--mute);font-size:.8rem}
+.tag{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--acc);margin-right:6px}
+.st{font-size:.72rem;padding:1px 7px;border-radius:999px;background:var(--line)}
+.st.active{color:var(--ok)}.st.paused{color:var(--warn)}.st.dropped,.st.failed{color:var(--bad)}
+a{color:var(--acc)}
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.tot{border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
+.tot b{display:block;font-size:1.15rem}
+.in{color:var(--ok)}.out{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+td,th{text-align:left;padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;font-size:.75rem;border-top:0}
+td.r,th.r{text-align:right;white-space:nowrap}
+.tw{overflow-x:auto}
+.empty{color:var(--mute);font-style:italic}
+.err{color:var(--bad);font-size:.85rem}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:var(--mute);font-size:.78rem}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:6px 12px}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff;width:100%;padding:9px 12px}
+button:disabled{opacity:.6;cursor:default}
+#lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+#lock form{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;width:100%;max-width:360px;display:grid;gap:12px}
+#lock h1{font-size:1.15rem}
+#lock input[type=password]{font:inherit;width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+#lock label.chk{display:flex;gap:8px;align-items:center;color:var(--mute);font-size:.88rem}
+</style>
+</head>
+<body>
+<div id="lock">
+  <form id="lockForm" autocomplete="off">
+    <h1>Status</h1>
+    <input id="pw" type="password" placeholder="Passphrase" aria-label="Passphrase" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus required>
+    <label class="chk"><input id="remember" type="checkbox" checked> Remember on this device</label>
+    <button class="primary" id="unlockBtn" type="submit">Unlock</button>
+    <div class="err" id="lockErr" role="alert"></div>
+  </form>
+</div>
+<div id="app" hidden>
+<header>
+  <div><h1 id="title">Status</h1><div class="sub" id="updated">Loading…</div></div>
+  <button id="lockBtn" type="button" title="Lock and forget the key on this device">Lock / forget</button>
+</header>
+<main>
+  <section class="wide"><h2>Working on now</h2><div class="now" id="status"><span class="dot"></span>…</div><div class="meta" id="statusSince"></div></section>
+  <section class="wide"><h2 id="waitingTitle">Waiting on you</h2><ul class="list" id="waiting"></ul></section>
+  <section><h2>Activity log</h2><ul class="list" id="log"></ul></section>
+  <section><h2>Active plays / projects</h2><ul class="list" id="plays"></ul></section>
+  <section class="wide"><h2>Money ledger</h2>
+    <div class="totals"><div class="tot"><span class="meta">In</span><b class="in" id="tin">$0.00</b></div><div class="tot"><span class="meta">Spent</span><b class="out" id="tout">$0.00</b></div><div class="tot"><span class="meta">Net</span><b id="tnet">$0.00</b></div></div>
+    <div class="tw"><table><thead><tr><th>Date (MT)</th><th>Type</th><th>Source / vendor</th><th>Note</th><th class="r">Amount</th></tr></thead><tbody id="ledger"></tbody></table></div>
+  </section>
+  <section class="wide"><h2>Accounts created</h2>
+    <div class="tw"><table><thead><tr><th>Platform</th><th>Username / email</th><th>Purpose</th><th>Created (MT)</th></tr></thead><tbody id="accounts"></tbody></table></div>
+  </section>
+</main>
+<footer>Auto-refreshes every 60 seconds. <span id="err" class="err"></span></footer>
+</div>
+<script>
+'use strict';
+const TZ='America/Denver', ITER=600000, DB='sv', STORE='k', KEYID='main';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=u=>/^https?:\/\//i.test(u||'')?u:null;
+function fmt(ts,dateOnly){if(!ts)return'';const d=new Date(ts);if(isNaN(d))return esc(ts);
+  const o=dateOnly?{timeZone:TZ,month:'short',day:'numeric',year:'numeric'}:{timeZone:TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'};
+  return d.toLocaleString('en-US',o)+(dateOnly?'':' MT');}
+const money=n=>(n<0?'-':'')+'$'+Math.abs(n).toFixed(2);
+const empty=(el,msg,cols)=>{el.innerHTML=cols?`<tr><td colspan="${cols}" class="empty">${msg}</td></tr>`:`<li class="empty">${msg}</li>`};
+function render(d){
+  if(d.title)$('title').textContent=d.title;
+  const first=String(d.owner||'').trim().split(/\s+/)[0];
+  $('waitingTitle').textContent='Waiting on '+(first||'you');
+  $('updated').textContent='Last updated: '+fmt(d.last_updated);
+  const s=d.status||{};
+  $('status').innerHTML='<span class="dot"></span>'+esc(s.text||'Idle');
+  $('statusSince').textContent=s.since?'Since '+fmt(s.since):'';
+  const wk=Object.keys(d).find(k=>/^waiting/.test(k));
+  const w=(d[wk]||[]).filter(x=>!x.done), we=$('waiting');
+  w.length?we.innerHTML=w.map(x=>`<li>${esc(x.text)}<div class="meta">#${esc(x.id)} · added ${fmt(x.added)}</div></li>`).join(''):empty(we,'Nothing needed from you right now.');
+  const l=[...(d.activity||[])].sort((a,b)=>new Date(b.ts)-new Date(a.ts)), le=$('log');
+  l.length?le.innerHTML=l.slice(0,200).map(x=>{const u=safeUrl(x.link);return`<li><span class="tag">${esc(x.category)}</span>${esc(x.text)}${u?` <a href="${esc(u)}" target="_blank" rel="noopener noreferrer">link</a>`:''}<div class="meta">${fmt(x.ts)}</div></li>`}).join(''):empty(le,'No activity yet.');
+  const p=d.plays||[], pe=$('plays');
+  p.length?pe.innerHTML=p.map(x=>`<li><b>${esc(x.name)}</b> <span class="st ${esc((x.status||'').toLowerCase())}">${esc(x.status)}</span>${x.note?`<div>${esc(x.note)}</div>`:''}<div class="meta">${x.updated?'Updated '+fmt(x.updated):''}</div></li>`).join(''):empty(pe,'No active plays yet.');
+  const g=[...(d.ledger||[])].sort((a,b)=>new Date(b.ts)-new Date(a.ts)), ge=$('ledger');
+  let tin=0,tout=0; g.forEach(x=>{const a=Number(x.amount)||0; x.type==='in'?tin+=a:tout+=a;});
+  $('tin').textContent=money(tin);$('tout').textContent=money(tout);
+  const net=tin-tout,ne=$('tnet');ne.textContent=money(net);ne.className=net>0?'in':net<0?'out':'';
+  g.length?ge.innerHTML=g.map(x=>`<tr><td>${fmt(x.ts,true)}</td><td class="${x.type==='in'?'in':'out'}">${x.type==='in'?'In':'Spent'}</td><td>${esc(x.source)}</td><td>${esc(x.note)}</td><td class="r ${x.type==='in'?'in':'out'}">${x.type==='in'?'+':'-'}${money(Number(x.amount)||0)}</td></tr>`).join(''):empty(ge,'No money in or out yet.',5);
+  const a=d.accounts||[], ae=$('accounts');
+  a.length?ae.innerHTML=a.map(x=>`<tr><td>${esc(x.platform)}</td><td>${esc(x.username)}</td><td>${esc(x.purpose)}</td><td>${fmt(x.created,true)}</td></tr>`).join(''):empty(ae,'No accounts created yet.',4);
+}
+
+/* ---- crypto ---- */
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function fetchEnc(){
+  const r=await fetch('data.enc?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json(); if(j.v!==1)throw new Error('unsupported format');
+  return j;
+}
+async function deriveKey(pass,saltB64){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64d(saltB64),iterations:ITER},base,{name:'AES-GCM',length:256},false,['decrypt']);
+}
+async function decrypt(key,enc){
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(enc.iv)},key,b64d(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+/* ---- IndexedDB key storage (non-extractable CryptoKey) ---- */
+function idb(){return new Promise((res,rej)=>{const q=indexedDB.open(DB,1);q.onupgradeneeded=()=>q.result.createObjectStore(STORE);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function idbDo(mode,fn){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(STORE,mode),s=t.objectStore(STORE);const q=fn(s);t.oncomplete=()=>{db.close();res(q&&q.result);};t.onerror=t.onabort=()=>{db.close();rej(t.error);};});}
+const saveKey=(key,salt)=>idbDo('readwrite',s=>s.put({key,salt},KEYID));
+const loadKey=()=>idbDo('readonly',s=>s.get(KEYID)).catch(()=>null);
+const forgetKey=()=>idbDo('readwrite',s=>s.delete(KEYID)).catch(()=>{});
+
+/* ---- app state ---- */
+let KEY=null, SALT=null, timer=null;
+function showApp(){$('lock').hidden=true;$('app').hidden=false;}
+function showLock(msg){
+  KEY=null;SALT=null;if(timer){clearInterval(timer);timer=null;}
+  $('app').hidden=true;$('lock').hidden=false;$('lockErr').textContent=msg||'';
+  $('pw').value='';$('pw').focus();
+  ['log','plays','waiting','ledger','accounts'].forEach(i=>$(i).innerHTML='');
+}
+async function refresh(){
+  try{
+    const enc=await fetchEnc();
+    if(enc.salt!==SALT){await forgetKey();showLock('Passphrase changed. Please unlock again.');return;}
+    render(await decrypt(KEY,enc));$('err').textContent='';
+  }catch(e){$('err').textContent='Could not load data ('+(e.message||'decrypt failed')+'); retrying.';}
+}
+function start(data){render(data);showApp();if(timer)clearInterval(timer);timer=setInterval(refresh,60000);}
+
+$('lockForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const pass=$('pw').value.trim().toLowerCase(); if(!pass)return;
+  const btn=$('unlockBtn'); btn.disabled=true; btn.textContent='Unlocking…'; $('lockErr').textContent='';
+  try{
+    const enc=await fetchEnc();
+    const key=await deriveKey(pass,enc.salt);
+    let data; try{data=await decrypt(key,enc);}catch(e){throw new Error('wrong');}
+    KEY=key;SALT=enc.salt;$('pw').value='';
+    if($('remember').checked){try{await saveKey(key,enc.salt);}catch(e){}} else await forgetKey();
+    start(data);
+  }catch(e){
+    $('lockErr').textContent=e.message==='wrong'?'Wrong passphrase.':'Could not load data ('+e.message+').';
+    $('pw').select();
+  }finally{btn.disabled=false;btn.textContent='Unlock';}
+});
+$('lockBtn').addEventListener('click',async()=>{await forgetKey();showLock('');});
+
+(async()=>{
+  const saved=await loadKey();
+  if(!saved||!saved.key)return;
+  try{
+    const enc=await fetchEnc();
+    if(enc.salt!==saved.salt)throw new Error('salt');
+    const data=await decrypt(saved.key,enc);
+    KEY=saved.key;SALT=saved.salt;start(data);
+  }catch(e){await forgetKey();}
+})();
+</script>
+</body>
+</html>
